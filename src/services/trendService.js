@@ -40,6 +40,7 @@ class TrendService {
         challenge_id: c.challenge_id,
         title: c.title,
         platform: c.platform,
+        category_id: c.category_id,
         view_count: c.view_count,
         trend_score: this.calculateTrendScore(c)
       })),

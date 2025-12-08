@@ -133,12 +133,14 @@ class ChallengeService {
       challenge_id: challenge.challenge_id,
       platform: challenge.platform,
       video_id: challenge.video_id,
+      video_url: challenge.video_url,
       title: challenge.title,
       thumbnail_url: challenge.thumbnail_url,
       channel_name: challenge.channel_name,
       view_count: challenge.view_count,
       like_count: challenge.like_count,
       difficulty: challenge.difficulty,
+      category_id: challenge.category_id, // 편의를 위해 최상위 레벨에도 추가
       category: {
         category_id: challenge.category_id,
         category_name: challenge.category_name,

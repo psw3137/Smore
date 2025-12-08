@@ -10,18 +10,21 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-  charset: 'utf8mb4'
+  charset: 'utf8mb4',
+  connectTimeout: 10000
 });
 
-// 연결 테스트
-pool.getConnection()
-  .then(conn => {
-    console.log('✅ MySQL connected successfully');
-    conn.release();
-  })
-  .catch(err => {
-    console.error('❌ MySQL connection failed:', err.message);
-    process.exit(1);
-  });
+// 연결 테스트 (서버 시작 시에만)
+if (require.main === module || process.env.NODE_ENV === 'production') {
+  pool.getConnection()
+    .then(conn => {
+      console.log('✅ MySQL connected successfully');
+      conn.release();
+    })
+    .catch(err => {
+      console.error('❌ MySQL connection failed:', err.message);
+      process.exit(1);
+    });
+}
 
 module.exports = pool;
