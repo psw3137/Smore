@@ -154,51 +154,46 @@ Expo Go 앱에서 QR 코드를 스캔하여 실행합니다.
 
 ## 🚀 배포
 
-### APK 빌드 및 배포
+### 배포 완료 ✅
 
-과제 제출이나 실제 기기 배포를 위해 APK를 빌드하려면 다음 가이드를 참고하세요:
+**백엔드**: Railway 클라우드 플랫폼에 배포 완료
+- **Production URL**: https://smore-production.up.railway.app
+- **API Base URL**: https://smore-production.up.railway.app/api/v1
+- **데이터베이스**: Railway MySQL (227개의 실제 챌린지 데이터)
+- **상태**: 🟢 운영 중
 
-#### 백엔드 배포 (Railway)
+**모바일 앱**: APK 빌드 준비 완료
+- 환경 변수 시스템 구축으로 개발/프로덕션 환경 분리
+- EAS Build 설정 완료
+- Railway API URL 연동 완료
 
-Railway를 사용하여 무료로 백엔드 서버를 배포할 수 있습니다:
+### 배포 아키텍처
 
-1. **배포 가이드 확인**: [RAILWAY_DEPLOYMENT.md](./RAILWAY_DEPLOYMENT.md) 참고
-2. **Railway 계정 생성**: https://railway.app
-3. **GitHub 연동** 및 프로젝트 배포
-4. **MySQL 플러그인 추가** 및 환경 변수 설정
-5. **생성된 Railway URL 복사**
+```
+[모바일 앱 (APK)]
+     ↓ HTTPS
+[Railway Backend]
+     ↓
+[Railway MySQL]
+```
 
-#### 모바일 앱 빌드
+### APK 빌드 방법
 
-1. **프로덕션 API URL 설정**:
+과제 제출이나 실제 기기 배포를 위한 APK 빌드:
 
-   `mobile/eas.json` 파일에서 Railway URL 입력:
-   ```json
-   {
-     "build": {
-       "production": {
-         "env": {
-           "API_URL": "https://your-app.up.railway.app/api/v1"
-         }
-       }
-     }
-   }
-   ```
+```bash
+cd mobile
+npm run build:production
+```
 
-2. **APK 빌드**:
-   ```bash
-   cd mobile
-   npm run build:production
-   ```
+빌드 완료 후 EAS 대시보드에서 APK 다운로드
 
-3. **APK 다운로드**:
-   - 빌드 완료 후 EAS 대시보드에서 다운로드
-   - 또는 터미널에 표시된 링크에서 다운로드
+### 배포 가이드 문서
 
-자세한 내용은 다음 문서를 참고하세요:
-- [Railway 배포 가이드](./RAILWAY_DEPLOYMENT.md)
-- [모바일 배포 가이드](./mobile/DEPLOYMENT_GUIDE.md)
-- [빌드 가이드](./mobile/BUILD_GUIDE.md)
+- [배포 빠른 시작](./DEPLOYMENT_QUICKSTART.md) - 전체 배포 프로세스 요약
+- [Railway 배포 상세 가이드](./RAILWAY_DEPLOYMENT.md) - Railway 배포 단계별 설명
+- [모바일 배포 가이드](./mobile/DEPLOYMENT_GUIDE.md) - 환경 설정 및 APK 빌드
+- [빌드 가이드](./mobile/BUILD_GUIDE.md) - EAS Build 설정
 
 ## 📁 프로젝트 구조
 

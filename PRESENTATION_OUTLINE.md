@@ -70,10 +70,12 @@ Backend (Server)
 • Node.js + Express.js
 • MySQL (데이터베이스)
 • RESTful API 설계
+• Railway (클라우드 배포) 🟢
 
 개발 도구
 • Git/GitHub (버전 관리)
 • EAS Build (APK 빌드)
+• Railway CLI (배포 관리)
 ```
 
 ---
@@ -82,23 +84,25 @@ Backend (Server)
 ```
 🏗️ 시스템 아키텍처
 
-┌─────────────┐
-│ Mobile App  │
-│ (React      │
-│  Native)    │
-└──────┬──────┘
-       │ HTTP/REST API
-       ↓
-┌─────────────┐
-│  Backend    │
-│  (Express)  │
-└──────┬──────┘
-       │
-       ↓
-┌─────────────┐
-│   MySQL     │
-│  Database   │
-└─────────────┘
+┌──────────────────┐
+│   Mobile App     │
+│  (React Native)  │
+│      APK         │
+└────────┬─────────┘
+         │ HTTPS/REST API
+         ↓
+┌──────────────────┐
+│ Railway Backend  │  🟢 배포 완료
+│   (Express.js)   │
+│ smore-production │
+│ .up.railway.app  │
+└────────┬─────────┘
+         │
+         ↓
+┌──────────────────┐
+│  Railway MySQL   │
+│   227 챌린지     │
+└──────────────────┘
 ```
 
 ---
@@ -271,6 +275,11 @@ RESTful API 엔드포인트:
 • 코드 리팩토링
 • 성능 최적화
 • 버그 수정
+
+5단계: 배포 🆕
+• Railway 클라우드 플랫폼 배포
+• 환경 변수 시스템 구축
+• APK 빌드 설정
 ```
 
 ---
@@ -363,12 +372,24 @@ RESTful API 엔드포인트:
 • 화면: 5개
 • API 엔드포인트: 8개
 
+데이터:
+• 실제 챌린지 영상: 227개
+• 카테고리: 8개
+• 태그: 491개
+
+배포 현황: 🟢
+• 백엔드: Railway 클라우드 운영 중
+• URL: https://smore-production.up.railway.app
+• APK: 빌드 준비 완료
+
 학습 성과:
 ✅ React Native 모바일 앱 개발
 ✅ RESTful API 설계 및 구현
 ✅ MySQL 데이터베이스 설계
 ✅ 코드 최적화 및 리팩토링
 ✅ 사용자 경험 (UX) 설계
+✅ 클라우드 배포 (Railway)
+✅ 환경 변수 관리
 ```
 
 ---
@@ -447,10 +468,18 @@ Q&A
 준비물:
 - [ ] PPT 파일 (PDF 백업 준비)
 - [ ] 앱 시연용 Android 기기 또는 에뮬레이터
-- [ ] 백엔드 서버 실행
+- [ ] Railway 서버 운영 확인 (https://smore-production.up.railway.app/health)
+- [ ] APK 파일 (실제 기기 시연용)
 - [ ] 데모 영상 (백업용)
 
 리허설:
 - [ ] 발표 시간 측정 (10~15분)
 - [ ] 시연 순서 확인
+- [ ] Railway 서버 상태 확인
 - [ ] Q&A 예상 질문 준비
+
+예상 질문:
+- Q: 왜 Railway를 선택했나요?
+- A: 무료 티어 제공, GitHub 연동 편의성, MySQL 플러그인 지원
+- Q: 데이터는 어떻게 수집했나요?
+- A: YouTube Data API v3를 사용하여 실제 Shorts 영상 227개 수집
