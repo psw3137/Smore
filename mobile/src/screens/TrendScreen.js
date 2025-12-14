@@ -16,6 +16,8 @@ import { StatCard } from '../components/StatCard';
 import { CategoryRankingRow } from '../components/CategoryRankingRow';
 import { ChallengeCard } from '../components/ChallengeCard';
 import { challengeAPI } from '../services/api';
+import { formatNumber } from '../utils/formatters';
+import { PAGINATION } from '../constants/app';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - spacing.md * 4) / 2;
@@ -32,7 +34,7 @@ const categoryColors = {
 };
 
 export default function TrendScreen({ navigation }) {
-  const [selectedPeriod, setSelectedPeriod] = useState(7);
+  const [selectedPeriod, setSelectedPeriod] = useState(14); // 7일 데이터가 없어서 14일로 기본값 변경
   const [trendData, setTrendData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -71,19 +73,13 @@ export default function TrendScreen({ navigation }) {
     }, 0);
   };
 
-  const formatNumber = (num) => {
-    if (!num) return '0';
-    if (num >= 1000000000) return (num / 1000000000).toFixed(1) + 'B';
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-    return num.toString();
-  };
-
   const handleChallengePress = (challenge) => {
     navigation.navigate('ChallengeDetail', {
       challengeId: challenge.challenge_id,
       categoryId: challenge.category_id,
-      sortType: 'popular' // 트렌드는 인기순
+      sortType: 'popular',
+      challenges: trendData?.trending_challenges || [], // 트렌드 챌린지 전체 전달
+      isSearchResult: true
     });
   };
 
@@ -119,7 +115,6 @@ export default function TrendScreen({ navigation }) {
       <ScrollView contentContainerStyle={styles.content}>
         {/* 기간 선택 */}
         <View style={styles.periodSelector}>
-          <PeriodButton period={7} label="7일" />
           <PeriodButton period={14} label="14일" />
           <PeriodButton period={30} label="30일" />
         </View>
@@ -165,29 +160,6 @@ export default function TrendScreen({ navigation }) {
           )}
         </View>
 
-        {/* 급상승 챌린지 */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🔥 급상승 챌린지</Text>
-          {trendData?.trending_challenges && trendData.trending_challenges.length > 0 ? (
-            <FlatList
-              horizontal
-              data={trendData.trending_challenges.slice(0, 10)}
-              renderItem={({ item }) => (
-                <View style={{ width: CARD_WIDTH }}>
-                  <ChallengeCard
-                    challenge={item}
-                    onPress={() => handleChallengePress(item)}
-                  />
-                </View>
-              )}
-              keyExtractor={(item, index) => `trending-${item.challenge_id}-${index}`}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.horizontalList}
-            />
-          ) : (
-            <Text style={styles.emptyText}>급상승 챌린지가 없습니다</Text>
-          )}
-        </View>
       </ScrollView>
     </View>
   );

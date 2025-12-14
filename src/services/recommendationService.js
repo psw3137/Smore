@@ -1,8 +1,99 @@
 // src/services/recommendationService.js
 const trendModel = require('../models/Trend');
 const challengeModel = require('../models/Challenge');
+const categoryModel = require('../models/Category');
 
 class RecommendationService {
+  // 일일 추천 챌린지 (Daily Picks)
+  async getDailyPicks() {
+    try {
+      // 오늘 날짜 기반 시드 생성 (매일 다른 챌린지 선택)
+      const today = new Date();
+      const dayOfYear = Math.floor((today - new Date(today.getFullYear(), 0, 0)) / 1000 / 60 / 60 / 24);
+
+      // 모든 활성 카테고리 조회
+      const categories = await categoryModel.getAll();
+
+      if (!categories || categories.length === 0) {
+        console.warn('No active categories found for daily picks');
+        return {
+          date: today.toISOString().split('T')[0],
+          total_picks: 0,
+          picks: []
+        };
+      }
+
+    // 각 카테고리별로 1개씩 추천 챌린지 선택
+    const dailyPicks = await Promise.all(
+      categories.map(async (category) => {
+        // 카테고리의 인기 챌린지들 가져오기
+        const challenges = await challengeModel.getChallenges(
+          { category: category.category_code },
+          'popular',
+          20,  // 상위 20개 중에서 선택
+          0
+        );
+
+        if (challenges.length === 0) return null;
+
+        // 오늘의 날짜를 기반으로 매일 다른 챌린지 선택 (pseudo-random)
+        const index = (dayOfYear + category.category_id) % challenges.length;
+        const selectedChallenge = challenges[index];
+
+        return {
+          category_id: category.category_id,
+          category_name: category.category_name,
+          category_code: category.category_code,
+          category_icon: category.icon_url,
+          challenge: {
+            challenge_id: selectedChallenge.challenge_id,
+            title: selectedChallenge.title,
+            thumbnail_url: selectedChallenge.thumbnail_url,
+            platform: selectedChallenge.platform,
+            view_count: selectedChallenge.view_count,
+            like_count: selectedChallenge.like_count,
+            difficulty: selectedChallenge.difficulty,
+            video_url: selectedChallenge.video_url
+          },
+          pick_reason: this.generateDailyPickReason(category.category_name)
+        };
+      })
+    );
+
+      // null 제거 (챌린지가 없는 카테고리)
+      const validPicks = dailyPicks.filter(pick => pick !== null);
+
+      return {
+        date: today.toISOString().split('T')[0],
+        total_picks: validPicks.length,
+        picks: validPicks
+      };
+    } catch (error) {
+      console.error('Error in getDailyPicks:', error);
+      // 에러 발생 시 빈 배열 반환
+      return {
+        date: new Date().toISOString().split('T')[0],
+        total_picks: 0,
+        picks: []
+      };
+    }
+  }
+
+  // 일일 추천 이유 생성
+  generateDailyPickReason(categoryName) {
+    const reasons = [
+      `오늘의 ${categoryName} 추천`,
+      `${categoryName} 카테고리 베스트`,
+      `꼭 도전해보세요!`,
+      `오늘의 챌린지`,
+      `인기 급상승 중`
+    ];
+
+    const today = new Date();
+    const index = today.getDate() % reasons.length;
+    return reasons[index];
+  }
+
   // 트렌드 기반 추천
   async getRecommendations(limit = 10, days = 7) {
     // 1단계: 카테고리별 통계 조회

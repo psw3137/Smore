@@ -3,6 +3,18 @@ const recommendationService = require('../services/recommendationService');
 const { ERROR_CODES } = require('../config/constants');
 
 class RecommendationController {
+  // 일일 추천 챌린지 (Daily Picks)
+  async getDailyPicks(req, res, next) {
+    try {
+      // 오늘의 추천 챌린지를 조회
+      const results = await recommendationService.getDailyPicks();
+
+      return res.successResponse(results, '오늘의 추천 챌린지를 조회했습니다');
+    } catch (error) {
+      next(error);
+    }
+  }
+
   // 트렌드 기반 추천
   async getRecommendations(req, res, next) {
     try {

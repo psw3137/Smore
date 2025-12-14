@@ -152,6 +152,54 @@ npx expo start
 
 Expo Go 앱에서 QR 코드를 스캔하여 실행합니다.
 
+## 🚀 배포
+
+### APK 빌드 및 배포
+
+과제 제출이나 실제 기기 배포를 위해 APK를 빌드하려면 다음 가이드를 참고하세요:
+
+#### 백엔드 배포 (Railway)
+
+Railway를 사용하여 무료로 백엔드 서버를 배포할 수 있습니다:
+
+1. **배포 가이드 확인**: [RAILWAY_DEPLOYMENT.md](./RAILWAY_DEPLOYMENT.md) 참고
+2. **Railway 계정 생성**: https://railway.app
+3. **GitHub 연동** 및 프로젝트 배포
+4. **MySQL 플러그인 추가** 및 환경 변수 설정
+5. **생성된 Railway URL 복사**
+
+#### 모바일 앱 빌드
+
+1. **프로덕션 API URL 설정**:
+
+   `mobile/eas.json` 파일에서 Railway URL 입력:
+   ```json
+   {
+     "build": {
+       "production": {
+         "env": {
+           "API_URL": "https://your-app.up.railway.app/api/v1"
+         }
+       }
+     }
+   }
+   ```
+
+2. **APK 빌드**:
+   ```bash
+   cd mobile
+   npm run build:production
+   ```
+
+3. **APK 다운로드**:
+   - 빌드 완료 후 EAS 대시보드에서 다운로드
+   - 또는 터미널에 표시된 링크에서 다운로드
+
+자세한 내용은 다음 문서를 참고하세요:
+- [Railway 배포 가이드](./RAILWAY_DEPLOYMENT.md)
+- [모바일 배포 가이드](./mobile/DEPLOYMENT_GUIDE.md)
+- [빌드 가이드](./mobile/BUILD_GUIDE.md)
+
 ## 📁 프로젝트 구조
 
 ```
@@ -200,9 +248,13 @@ Smore/
 ├── mobile/                             # 모바일 앱 소스
 │   ├── src/
 │   │   ├── components/                 # 재사용 가능 컴포넌트
-│   │   │   ├── ChallengeCard.js
-│   │   │   ├── CategoryRankingRow.js
-│   │   │   └── StatCard.js
+│   │   │   ├── ChallengeCard.js        # 챌린지 카드 (React.memo 최적화)
+│   │   │   ├── GradientHeader.js       # 공통 그라데이션 헤더
+│   │   │   ├── ListStates.js           # 로딩/빈 상태/에러 상태
+│   │   │   ├── ChallengeGrid.js        # 챌린지 그리드 레이아웃
+│   │   │   ├── CategoryRankingRow.js   # 트렌드 순위 행
+│   │   │   ├── StatCard.js             # 통계 카드
+│   │   │   └── SplashScreen.js         # 스플래시 화면
 │   │   ├── navigation/
 │   │   │   └── RootNavigator.js        # 탭 네비게이션
 │   │   ├── screens/                    # 화면 컴포넌트
@@ -215,12 +267,22 @@ Smore/
 │   │   ├── services/
 │   │   │   ├── api.js                  # API 클라이언트
 │   │   │   └── storage.js              # AsyncStorage 서비스
+│   │   ├── utils/                      # 유틸리티 함수
+│   │   │   ├── formatters.js           # 숫자/날짜 포맷팅
+│   │   │   ├── youtube.js              # YouTube URL 처리
+│   │   │   └── errorHandler.js         # 에러 처리
+│   │   ├── constants/                  # 상수
+│   │   │   └── app.js                  # 앱 전역 상수
 │   │   └── theme/                      # 디자인 시스템
 │   │       ├── colors.js
 │   │       ├── spacing.js
 │   │       └── typography.js
+│   ├── assets/                         # 이미지/아이콘
 │   ├── App.js
-│   └── package.json
+│   ├── app.json                        # Expo 설정
+│   ├── eas.json                        # EAS Build 설정
+│   ├── package.json
+│   └── BUILD_GUIDE.md                  # APK 빌드 가이드
 │
 ├── MySQL_schema.sql                    # 데이터베이스 스키마
 ├── clear-and-collect.js                # 데이터 수집 스크립트
@@ -410,6 +472,34 @@ GET /api/v1/recommendations?limit={개수}&days={기간}
 - [x] YouTube 앱 연동
 - [x] 일관된 디자인 시스템 (colors, spacing, typography)
 
+### ✅ 최근 완료된 개선 사항
+
+#### 모바일 앱 최적화 (2024-12)
+- [x] **코드 중복 제거**
+  - formatNumber, getYoutubeVideoId 함수 → utils 폴더로 분리
+  - 중복된 로딩/빈 상태 렌더링 제거
+
+- [x] **재사용 컴포넌트 생성**
+  - GradientHeader: 공통 헤더 컴포넌트
+  - ListStates: 로딩/빈 상태/에러 상태 통합
+  - ChallengeGrid: 2열 그리드 레이아웃
+
+- [x] **성능 최적화**
+  - ChallengeCard에 React.memo 적용
+  - 이미지 캐싱 설정 (`cache="force-cache"`)
+  - 상수 관리 체계화 (constants/app.js)
+
+- [x] **UX 개선**
+  - 재생 화면: 화면 터치 시 UI 토글, 3초 후 자동 숨김
+  - 그라데이션 최적화: 잘림 현상 제거
+  - 부드러운 페이드 애니메이션 적용
+
+- [x] **빌드 환경 구축**
+  - app.json APK 빌드 설정 완료
+  - eas.json EAS Build 프로파일 설정
+  - package.json 빌드 스크립트 추가
+  - BUILD_GUIDE.md 작성
+
 ### 🔧 개선 필요 사항
 
 #### 백엔드
@@ -421,12 +511,9 @@ GET /api/v1/recommendations?limit={개수}&days={기간}
 - [ ] 배치 스케줄러 구현 (정기적 데이터 갱신)
 
 #### 모바일
-- [ ] 공통 스타일 추출 (`theme/commonStyles.js`)
-- [ ] 재사용 컴포넌트 분리 (EmptyState, Header, LoadingIndicator)
 - [ ] 커스텀 Hook 구현 (usePagination, useBookmark)
-- [ ] 리렌더링 최적화 (useCallback, useMemo)
+- [ ] HomeScreen, SearchScreen 리렌더링 최적화 (useCallback, useMemo)
 - [ ] FlatList 성능 최적화 (getItemLayout)
-- [ ] 하드코딩된 값 상수화
 
 ### 🚀 향후 계획
 

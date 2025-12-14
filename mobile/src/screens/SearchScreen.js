@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Dimensions
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
@@ -84,7 +85,9 @@ export default function SearchScreen({ navigation }) {
     navigation.navigate('ChallengeDetail', {
       challengeId: challenge.challenge_id,
       categoryId: challenge.category_id,
-      sortType: sortType
+      sortType: sortType,
+      challenges: searchResults, // 검색 결과 전체를 전달
+      isSearchResult: true
     });
   };
 
@@ -141,31 +144,36 @@ export default function SearchScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* 헤더 */}
-      <View style={styles.header}>
+      {/* 헤더 with 그라디언트 */}
+      <LinearGradient
+        colors={colors.gradient.warm}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.headerGradient}
+      >
         <Text style={styles.headerTitle}>검색</Text>
-      </View>
 
-      {/* 검색 바 */}
-      <View style={styles.searchBar}>
-        <Ionicons name="search" size={20} color={colors.text_secondary} />
-        <TextInput
-          placeholder="챌린지 검색..."
-          placeholderTextColor={colors.text_secondary}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          onSubmitEditing={() => handleSearch()}
-          style={styles.input}
-        />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <Ionicons name="close-circle" size={20} color={colors.text_secondary} />
+        {/* 검색 바 */}
+        <View style={styles.searchBar}>
+          <Ionicons name="search" size={20} color={colors.text_secondary} />
+          <TextInput
+            placeholder="챌린지 검색..."
+            placeholderTextColor={colors.text_secondary}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            onSubmitEditing={() => handleSearch()}
+            style={styles.input}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <Ionicons name="close-circle" size={20} color={colors.text_secondary} />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity onPress={toggleSort} style={styles.sortIcon}>
+            <Ionicons name="funnel" size={20} color={colors.primary} />
           </TouchableOpacity>
-        )}
-        <TouchableOpacity onPress={toggleSort} style={styles.sortIcon}>
-          <Ionicons name="funnel" size={20} color={colors.primary} />
-        </TouchableOpacity>
-      </View>
+        </View>
+      </LinearGradient>
 
       {/* 정렬 표시 */}
       {hasSearched && (
@@ -227,33 +235,41 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background
   },
-  header: {
+  headerGradient: {
+    paddingTop: 50,
+    paddingBottom: spacing.md,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.surface,
-    paddingTop: 50
   },
   headerTitle: {
-    ...typography.h1,
-    color: colors.primary
+    fontSize: 28,
+    fontWeight: '900',
+    color: colors.text_white,
+    letterSpacing: -0.5,
+    marginBottom: spacing.md,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
-    margin: spacing.md,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: 12
+    paddingVertical: spacing.sm + 4,
+    borderRadius: 16,
+    elevation: 4,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
   },
   input: {
     flex: 1,
     ...typography.body_md,
     color: colors.text_primary,
-    paddingVertical: spacing.xs
+    paddingVertical: spacing.xs,
+    marginLeft: spacing.sm,
   },
   sortIcon: {
-    marginLeft: spacing.xs
+    marginLeft: spacing.sm,
+    padding: spacing.xs,
   },
   sortInfo: {
     paddingHorizontal: spacing.lg,

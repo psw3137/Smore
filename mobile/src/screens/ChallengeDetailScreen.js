@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
 import {
   View,
   Text,
@@ -8,14 +8,20 @@ import {
   Linking,
   Dimensions,
   StatusBar,
-  FlatList
+  FlatList,
+  TouchableWithoutFeedback,
+  Animated
 } from 'react-native';
 import YoutubePlayer from 'react-native-youtube-iframe';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import { challengeAPI } from '../services/api';
 import { storageService } from '../services/storage';
+import { formatNumber } from '../utils/formatters';
+import { getYoutubeVideoId } from '../utils/youtube';
+import { ANIMATION } from '../constants/app';
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -25,14 +31,47 @@ const PLAYER_HEIGHT = SCREEN_HEIGHT;
 const PLAYER_WIDTH = SCREEN_HEIGHT * (16 / 9); // 화면보다 넓게 (좌우가 잘림)
 
 export default function ChallengeDetailScreen({ route, navigation }) {
-  const { challengeId, categoryId, sortType = 'latest' } = route.params;
+  const {
+    challengeId,
+    categoryId,
+    sortType = 'latest',
+    challenges: providedChallenges,
+    isSearchResult = false
+  } = route.params;
+
   const [challenges, setChallenges] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [bookmarks, setBookmarks] = useState({});
+  const [showUI, setShowUI] = useState(true);
 
-  const playerRefs = useRef({});
   const flatListRef = useRef(null);
+  const uiOpacity = useRef(new Animated.Value(1)).current;
+  const hideTimerRef = useRef(null);
+
+  // 탭바 숨기기
+  useLayoutEffect(() => {
+    navigation.getParent()?.setOptions({
+      tabBarStyle: { display: 'none' }
+    });
+    return () => {
+      navigation.getParent()?.setOptions({
+        tabBarStyle: {
+          backgroundColor: colors.surface,
+          borderTopColor: colors.border,
+          borderTopWidth: 1,
+          elevation: 8,
+          shadowColor: colors.shadow,
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 8,
+          height: 85,
+          paddingBottom: 28,
+          paddingTop: 8,
+        }
+      });
+    };
+  }, [navigation]);
 
   useEffect(() => {
     loadChallenges();
@@ -40,12 +79,20 @@ export default function ChallengeDetailScreen({ route, navigation }) {
 
   const loadChallenges = async () => {
     try {
-      // 카테고리의 모든 챌린지 로드 (홈화면과 같은 정렬 순서로)
-      const data = await challengeAPI.getChallengesByCategory(categoryId, {
-        sort: sortType,
-        limit: 100 // 충분한 양의 챌린지 로드
-      });
-      const challengeList = data.challenges || [];
+      let challengeList = [];
+
+      // 검색 결과나 외부에서 제공된 챌린지 사용
+      if (isSearchResult && providedChallenges) {
+        challengeList = providedChallenges;
+      } else {
+        // 카테고리의 모든 챌린지 로드
+        const data = await challengeAPI.getChallengesByCategory(categoryId, {
+          sort: sortType,
+          limit: 100
+        });
+        challengeList = data.challenges || [];
+      }
+
       setChallenges(challengeList);
 
       // 현재 challengeId의 인덱스 찾기
@@ -67,6 +114,63 @@ export default function ChallengeDetailScreen({ route, navigation }) {
     }
   };
 
+  // UI 표시/숨김 토글
+  const toggleUI = () => {
+    const toValue = showUI ? 0 : 1;
+
+    // 기존 타이머 제거
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+
+    // 애니메이션
+    Animated.timing(uiOpacity, {
+      toValue,
+      duration: ANIMATION.FADE_DURATION,
+      useNativeDriver: true,
+    }).start(() => {
+      setShowUI(!showUI);
+
+      // UI가 보이는 상태가 되면 자동 숨김
+      if (!showUI) {
+        hideTimerRef.current = setTimeout(() => {
+          Animated.timing(uiOpacity, {
+            toValue: 0,
+            duration: ANIMATION.FADE_DURATION,
+            useNativeDriver: true,
+          }).start(() => {
+            setShowUI(false);
+          });
+        }, ANIMATION.UI_AUTO_HIDE_DELAY);
+      }
+    });
+  };
+
+  // 컴포넌트 언마운트 시 타이머 정리
+  useEffect(() => {
+    return () => {
+      if (hideTimerRef.current) {
+        clearTimeout(hideTimerRef.current);
+      }
+    };
+  }, []);
+
+  // 초기 로드 시 UI 자동 숨김
+  useEffect(() => {
+    if (!isLoading) {
+      hideTimerRef.current = setTimeout(() => {
+        Animated.timing(uiOpacity, {
+          toValue: 0,
+          duration: ANIMATION.FADE_DURATION,
+          useNativeDriver: true,
+        }).start(() => {
+          setShowUI(false);
+        });
+      }, ANIMATION.UI_AUTO_HIDE_DELAY);
+    }
+  }, [isLoading]);
+
   const toggleBookmark = async (challenge) => {
     const challengeId = challenge.challenge_id;
     const isBookmarked = bookmarks[challengeId];
@@ -86,52 +190,15 @@ export default function ChallengeDetailScreen({ route, navigation }) {
     }
   };
 
-  const getYoutubeVideoId = (url) => {
-    if (!url) return null;
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|shorts\/|watch\?v=|&v=)([^#&?]*).*/;
-    const match = url.match(regExp);
-    return (match && match[2].length === 11) ? match[2] : null;
-  };
-
-  const formatNumber = (num) => {
-    if (!num) return '0';
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-    return num.toString();
-  };
-
-  // 현재 보이는 아이템 추적
-  const onViewableItemsChanged = useRef(({ viewableItems }) => {
-    if (viewableItems.length > 0) {
-      const newIndex = viewableItems[0].index;
-      setCurrentIndex(newIndex);
-      console.log('📍 Current video index:', newIndex);
-    }
-  }).current;
-
-  const viewabilityConfig = useRef({
-    itemVisiblePercentThreshold: 80 // 80% 이상 보일 때 활성화
-  }).current;
-
-  // 각 비디오의 onReady 콜백 - 즉시 재생 시작
-  const onPlayerReady = useCallback((challengeId) => {
-    console.log('✅ Player Ready:', challengeId);
-    // 현재 보이는 비디오인지 확인
-    const isCurrentVideo = challenges[currentIndex]?.challenge_id === challengeId;
-
-    if (isCurrentVideo) {
-      console.log('▶️ Auto-playing video:', challengeId);
-      // play prop이 true로 설정되어 있으므로 자동으로 재생됨
-      // react-native-youtube-iframe는 play prop 변경을 감지하여 playVideo() 호출
-    }
-  }, [challenges, currentIndex]);
+  const [playbackErrors, setPlaybackErrors] = useState({});
 
   const onPlayerError = useCallback((error, challengeId) => {
     console.error('❌ Player Error:', error, 'Challenge:', challengeId);
-  }, []);
 
-  const onPlayerStateChange = useCallback((state, challengeId) => {
-    console.log('🎬 Player State:', state, 'Challenge:', challengeId);
+    // embed_not_allowed 에러 처리
+    if (error === 'embed_not_allowed') {
+      setPlaybackErrors(prev => ({ ...prev, [challengeId]: true }));
+    }
   }, []);
 
   if (isLoading) {
@@ -144,36 +211,46 @@ export default function ChallengeDetailScreen({ route, navigation }) {
 
   const renderChallengeItem = ({ item, index }) => {
     const videoId = getYoutubeVideoId(item.video_url);
-    const isActive = index === currentIndex;
     const isBookmarked = bookmarks[item.challenge_id];
+    const hasPlaybackError = playbackErrors[item.challenge_id];
 
     return (
-      <View style={styles.videoPage}>
-        {/* 영상 플레이어 - 전체 화면 배경 */}
-        <View style={styles.videoContainer}>
-          {videoId ? (
+      <TouchableWithoutFeedback onPress={toggleUI}>
+        <View style={styles.videoPage}>
+          {/* 영상 플레이어 - 전체 화면 배경 */}
+          <View style={styles.videoContainer}>
+          {hasPlaybackError ? (
+            <View style={styles.errorContainer}>
+              <Ionicons name="alert-circle-outline" size={80} color={colors.text_white} />
+              <Text style={styles.errorTitle}>재생할 수 없는 영상</Text>
+              <Text style={styles.errorMessage}>
+                이 영상은 앱 내에서 재생할 수 없습니다.{'\n'}
+                YouTube에서 시청하세요.
+              </Text>
+              <TouchableOpacity
+                style={styles.youtubeButton}
+                onPress={() => openExternalLink(item.video_url)}
+              >
+                <Ionicons name="logo-youtube" size={24} color="white" />
+                <Text style={styles.youtubeButtonText}>YouTube에서 보기</Text>
+              </TouchableOpacity>
+            </View>
+          ) : videoId ? (
             <YoutubePlayer
-              ref={(ref) => playerRefs.current[item.challenge_id] = ref}
               height={PLAYER_HEIGHT}
               width={PLAYER_WIDTH}
               videoId={videoId}
-              play={isActive} // 현재 보이는 비디오만 재생
-              onReady={() => onPlayerReady(item.challenge_id)}
               onError={(error) => onPlayerError(error, item.challenge_id)}
-              onChangeState={(state) => onPlayerStateChange(state, item.challenge_id)}
-              forceAndroidAutoplay={true}
               webViewStyle={styles.youtubeWebView}
               webViewProps={{
                 androidLayerType: 'hardware',
                 allowsInlineMediaPlayback: true,
-                mediaPlaybackRequiresUserAction: false
               }}
               initialPlayerParams={{
-                controls: 1, // 컨트롤 표시 (일단 재생 확인용)
+                controls: 1,
                 modestbranding: 1,
                 rel: 0,
                 playsinline: 1,
-                fs: 0, // 전체화면 버튼 숨김
               }}
             />
           ) : (
@@ -182,44 +259,64 @@ export default function ChallengeDetailScreen({ route, navigation }) {
         </View>
 
         {/* 플랫폼 배지 */}
-        <View style={[styles.platformBadge, { backgroundColor: colors.platform.youtube }]}>
-          <Text style={styles.platformText}>SHORTS</Text>
-        </View>
+        <Animated.View style={{ opacity: uiOpacity }}>
+          <LinearGradient
+            colors={['#FF0000', '#CC0000']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.platformBadge}
+          >
+            <Text style={styles.platformText}>SHORTS</Text>
+          </LinearGradient>
+        </Animated.View>
 
         {/* 우측 액션 버튼 */}
-        <View style={styles.rightActionsOverlay}>
+        <Animated.View style={[styles.rightActionsOverlay, { opacity: uiOpacity }]}>
           <TouchableOpacity
             style={styles.actionButtonOverlay}
             onPress={() => toggleBookmark(item)}
           >
-            <Ionicons
-              name={isBookmarked ? 'bookmark' : 'bookmark-outline'}
-              size={32}
-              color={isBookmarked ? colors.primary : 'white'}
-            />
-            <Text style={[styles.actionLabelOverlay, { marginTop: spacing.xs }]}>저장</Text>
+            <LinearGradient
+              colors={isBookmarked ? colors.gradient.primary : ['rgba(255,255,255,0.2)', 'rgba(255,255,255,0.1)']}
+              style={styles.actionButtonBg}
+            >
+              <Ionicons
+                name={isBookmarked ? 'bookmark' : 'bookmark-outline'}
+                size={28}
+                color="white"
+              />
+            </LinearGradient>
+            <Text style={styles.actionLabelOverlay}>저장</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.actionButtonOverlay}
             onPress={() => openExternalLink(item.video_url)}
           >
-            <Ionicons name="logo-youtube" size={32} color="white" />
-            <Text style={[styles.actionLabelOverlay, { marginTop: spacing.xs }]}>YouTube</Text>
+            <View style={styles.actionButtonBg}>
+              <Ionicons name="logo-youtube" size={28} color="white" />
+            </View>
+            <Text style={styles.actionLabelOverlay}>YouTube</Text>
           </TouchableOpacity>
-        </View>
+        </Animated.View>
 
         {/* 하단 정보 */}
-        <View style={styles.bottomInfoOverlay}>
-          <Text style={styles.titleOverlay} numberOfLines={2}>
-            {item.title}
-          </Text>
-          <Text style={styles.channelName}>{item.channel_name}</Text>
-          <Text style={styles.stats}>
-            👁 {formatNumber(item.view_count)} views
-          </Text>
+        <Animated.View style={{ opacity: uiOpacity }}>
+          <LinearGradient
+            colors={['transparent', 'rgba(0,0,0,0.8)', 'rgba(0,0,0,0.95)']}
+            style={styles.bottomInfoOverlay}
+          >
+            <Text style={styles.titleOverlay} numberOfLines={2}>
+              {item.title}
+            </Text>
+            <Text style={styles.channelName}>{item.channel_name}</Text>
+            <Text style={styles.stats}>
+              👁 {formatNumber(item.view_count)} views
+            </Text>
+          </LinearGradient>
+        </Animated.View>
         </View>
-      </View>
+      </TouchableWithoutFeedback>
     );
   };
 
@@ -244,8 +341,14 @@ export default function ChallengeDetailScreen({ route, navigation }) {
         snapToInterval={SCREEN_HEIGHT}
         snapToAlignment="start"
         decelerationRate="fast"
-        onViewableItemsChanged={onViewableItemsChanged}
-        viewabilityConfig={viewabilityConfig}
+        onScrollToIndexFailed={(info) => {
+          console.warn('Scroll to index failed:', info);
+          setTimeout(() => {
+            if (flatListRef.current && info.index < challenges.length) {
+              flatListRef.current.scrollToIndex({ index: info.index, animated: false });
+            }
+          }, 100);
+        }}
         initialScrollIndex={currentIndex}
         getItemLayout={(data, index) => ({
           length: SCREEN_HEIGHT,
@@ -310,38 +413,63 @@ const styles = StyleSheet.create({
     right: spacing.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    borderRadius: 4,
-    zIndex: 100
+    borderRadius: 12,
+    zIndex: 100,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
   platformText: {
     color: 'white',
-    fontSize: 12,
-    fontWeight: '700'
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   rightActionsOverlay: {
     position: 'absolute',
     right: spacing.md,
     bottom: 140,
-    zIndex: 100
+    zIndex: 100,
+    gap: spacing.md,
   },
   actionButtonOverlay: {
     alignItems: 'center',
-    marginBottom: spacing.lg
+    marginBottom: spacing.sm,
+  },
+  actionButtonBg: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
   actionLabelOverlay: {
     color: 'white',
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 11,
+    fontWeight: '700',
     textShadowColor: 'rgba(0, 0, 0, 0.75)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3
+    textShadowRadius: 3,
+    marginTop: 4,
   },
   bottomInfoOverlay: {
     position: 'absolute',
-    bottom: 80,
+    bottom: 20,
     left: 0,
-    right: 60,
-    padding: spacing.lg,
+    right: 0,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.md,
+    paddingLeft: spacing.lg,
+    paddingRight: 100,
     zIndex: 100
   },
   titleOverlay: {
@@ -374,5 +502,47 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     marginTop: 100
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#000',
+    padding: spacing.xl,
+  },
+  errorTitle: {
+    color: colors.text_white,
+    fontSize: 24,
+    fontWeight: '700',
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+  },
+  errorMessage: {
+    color: colors.text_white,
+    fontSize: 16,
+    textAlign: 'center',
+    opacity: 0.8,
+    marginBottom: spacing.xl,
+    lineHeight: 24,
+  },
+  youtubeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FF0000',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: 30,
+    gap: spacing.sm,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
+  youtubeButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '700',
   }
 });

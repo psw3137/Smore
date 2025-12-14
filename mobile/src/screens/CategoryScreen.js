@@ -8,6 +8,7 @@ import {
   Dimensions,
   ActivityIndicator
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
@@ -101,9 +102,14 @@ export default function CategoryScreen({ navigation }) {
     return (
       <View style={styles.container}>
         {/* 헤더 */}
-        <View style={styles.header}>
+        <LinearGradient
+          colors={colors.gradient.warm}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.headerGradient}
+        >
           <Text style={styles.headerTitle}>카테고리</Text>
-        </View>
+        </LinearGradient>
 
         {/* 카테고리 그리드 */}
         <View style={styles.categoryContainer}>
@@ -112,11 +118,14 @@ export default function CategoryScreen({ navigation }) {
             numColumns={2}
             renderItem={({ item }) => (
               <TouchableOpacity
-                style={[styles.categoryButton, { backgroundColor: item.color }]}
+                style={styles.categoryButton}
                 onPress={() => handleCategoryPress(item)}
+                activeOpacity={0.8}
               >
-                <Text style={styles.categoryIcon}>{item.icon}</Text>
-                <Text style={styles.categoryName}>{item.name}</Text>
+                <View style={[styles.categoryIconBg, { backgroundColor: item.color + '20' }]}>
+                  <Text style={styles.categoryIcon}>{item.icon}</Text>
+                </View>
+                <Text style={[styles.categoryName, { color: item.color }]}>{item.name}</Text>
               </TouchableOpacity>
             )}
             keyExtractor={(item) => item.id.toString()}
@@ -132,13 +141,20 @@ export default function CategoryScreen({ navigation }) {
   return (
     <View style={styles.container}>
       {/* 헤더 */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={colors.primary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{selectedCategory.name}</Text>
-        <View style={{ width: 24 }} />
-      </View>
+      <LinearGradient
+        colors={colors.gradient.warm}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.headerGradient}
+      >
+        <View style={styles.header}>
+          <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={colors.text_white} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{selectedCategory.name}</Text>
+          <View style={{ width: 24 }} />
+        </View>
+      </LinearGradient>
 
       {/* 챌린지 그리드 */}
       {isLoading && challenges.length === 0 ? (
@@ -182,18 +198,21 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background
   },
+  headerGradient: {
+    paddingTop: 50,
+    paddingBottom: spacing.md,
+    paddingHorizontal: spacing.lg,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.surface,
-    paddingTop: 50
   },
   headerTitle: {
-    ...typography.h1,
-    color: colors.primary
+    fontSize: 28,
+    fontWeight: '900',
+    color: colors.text_white,
+    letterSpacing: -0.5,
   },
   backButton: {
     padding: spacing.xs
@@ -213,23 +232,31 @@ const styles = StyleSheet.create({
     flex: 1,
     aspectRatio: 1,
     marginHorizontal: spacing.sm,
-    borderRadius: 16,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: colors.surface,
     elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+  },
+  categoryIconBg: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
   },
   categoryIcon: {
-    fontSize: 48,
-    marginBottom: spacing.sm
+    fontSize: 40,
   },
   categoryName: {
     ...typography.h3,
-    color: colors.text_primary,
-    fontWeight: '700'
+    fontWeight: '800',
+    fontSize: 16,
   },
   content: {
     padding: spacing.sm

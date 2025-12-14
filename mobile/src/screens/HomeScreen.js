@@ -7,8 +7,11 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Dimensions,
-  RefreshControl
+  RefreshControl,
+  ScrollView,
+  Image
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
@@ -21,19 +24,30 @@ const CARD_WIDTH = (width - spacing.md * 3) / 2;
 
 export default function HomeScreen({ navigation }) {
   const [challenges, setChallenges] = useState([]);
+  const [dailyPicks, setDailyPicks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [sortType, setSortType] = useState('popular');  // 기본값을 인기순으로 변경
 
-  useEffect(() => {
-    loadChallenges();
-  }, [sortType]);
+  // 함수들을 먼저 정의
+  const loadDailyPicks = useCallback(async () => {
+    try {
+      const data = await challengeAPI.getDailyPicks();
+      setDailyPicks(data.picks || []);
+    } catch (error) {
+      console.error('Failed to load daily picks:', error);
+      // Daily Picks 로드 실패는 치명적이지 않으므로 조용히 실패
+      setDailyPicks([]);
+    }
+  }, []); // 의존성 없음 - API 호출만 수행
 
   const loadChallenges = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
       setIsRefreshing(true);
+      // 리프레시할 때 Daily Picks도 함께 새로고침
+      loadDailyPicks();
     } else {
       setIsLoading(true);
     }
@@ -55,7 +69,13 @@ export default function HomeScreen({ navigation }) {
         setIsLoading(false);
       }
     }
-  }, [sortType]);
+  }, [sortType, loadDailyPicks]); // loadDailyPicks를 의존성에 추가
+
+  // useEffect: 컴포넌트 마운트 시 및 sortType 변경 시 데이터 로드
+  useEffect(() => {
+    loadChallenges();
+    loadDailyPicks();
+  }, [loadChallenges, loadDailyPicks]);
 
   const loadMore = async () => {
     if (!hasMore || isLoading) return;
@@ -105,6 +125,48 @@ export default function HomeScreen({ navigation }) {
     );
   };
 
+  const renderDailyPicks = () => {
+    if (dailyPicks.length === 0) return null;
+
+    return (
+      <View style={styles.dailyPicksSection}>
+        <View style={styles.dailyPicksHeader}>
+          <Text style={styles.dailyPicksTitle}>🔥 오늘의 추천</Text>
+          <Text style={styles.dailyPicksSubtitle}>매일 새롭게 업데이트</Text>
+        </View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.dailyPicksScroll}
+        >
+          {dailyPicks.map((pick, index) => (
+            <TouchableOpacity
+              key={index}
+              style={styles.dailyPickCard}
+              onPress={() => handleChallengePress({
+                ...pick.challenge,
+                category_id: pick.category_id
+              })}
+            >
+              {pick.challenge.thumbnail_url ? (
+                <Image
+                  source={{ uri: pick.challenge.thumbnail_url }}
+                  style={styles.dailyPickImage}
+                />
+              ) : (
+                <View style={styles.dailyPickImagePlaceholder} />
+              )}
+              <View style={styles.dailyPickOverlay}>
+                <Text style={styles.dailyPickCategory}>{pick.category_name}</Text>
+                <Text style={styles.dailyPickReason}>{pick.pick_reason}</Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+    );
+  };
+
   if (isLoading && challenges.length === 0) {
     return (
       <View style={styles.centeredContainer}>
@@ -115,23 +177,34 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* 헤더 */}
-      <View style={styles.header}>
-        <Text style={styles.logo}>Smore ✨</Text>
-        <TouchableOpacity onPress={toggleSort}>
-          <View style={styles.sortButton}>
-            <Ionicons name="swap-vertical" size={20} color={colors.primary} />
-            <Text style={[styles.sortText, { marginLeft: spacing.xs }]}>
-              {sortType === 'popular' ? '인기순' : '최신순'}
-            </Text>
+      {/* 헤더 with 그라디언트 */}
+      <LinearGradient
+        colors={colors.gradient.warm}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.headerGradient}
+      >
+        <View style={styles.header}>
+          <View style={styles.logoContainer}>
+            <Text style={styles.logo}>Smore</Text>
+            <Text style={styles.logoEmoji}>✨</Text>
           </View>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity onPress={toggleSort} style={styles.sortButton}>
+            <View style={styles.sortButtonInner}>
+              <Ionicons name="swap-vertical" size={18} color={colors.text_white} />
+              <Text style={styles.sortText}>
+                {sortType === 'popular' ? '인기순' : '최신순'}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
 
       {/* 챌린지 그리드 */}
       <FlatList
         data={challenges}
         numColumns={2}
+        ListHeaderComponent={renderDailyPicks}
         renderItem={({ item }) => (
           <View style={{ width: CARD_WIDTH }}>
             <ChallengeCard
@@ -165,30 +238,49 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background
   },
+  headerGradient: {
+    paddingTop: 50,
+    paddingBottom: spacing.md,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.surface,
-    paddingTop: 50
+  },
+  logoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   logo: {
-    ...typography.h1,
-    color: colors.primary
+    fontSize: 28,
+    fontWeight: '900',
+    color: colors.text_white,
+    letterSpacing: -0.5,
+  },
+  logoEmoji: {
+    fontSize: 24,
+    marginLeft: spacing.xs,
   },
   sortButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 20,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  sortButtonInner: {
     flexDirection: 'row',
-    alignItems: 'center'
+    alignItems: 'center',
+    gap: 6,
   },
   sortText: {
-    ...typography.body_md,
-    color: colors.primary,
-    fontWeight: '600'
+    ...typography.body_sm,
+    color: colors.text_white,
+    fontWeight: '600',
   },
   content: {
-    padding: spacing.sm
+    padding: spacing.sm,
+    paddingBottom: spacing.xxl,
   },
   columnWrapper: {
     justifyContent: 'flex-start'
@@ -213,5 +305,75 @@ const styles = StyleSheet.create({
     ...typography.body_lg,
     color: colors.text_tertiary,
     marginTop: spacing.md
+  },
+  dailyPicksSection: {
+    marginBottom: spacing.lg,
+    marginTop: spacing.sm,
+  },
+  dailyPicksHeader: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm
+  },
+  dailyPicksTitle: {
+    ...typography.h2,
+    color: colors.text_primary,
+    fontWeight: '800',
+    fontSize: 20,
+  },
+  dailyPicksSubtitle: {
+    ...typography.body_sm,
+    color: colors.text_secondary,
+    marginTop: 4,
+    fontWeight: '500',
+  },
+  dailyPicksScroll: {
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.sm
+  },
+  dailyPickCard: {
+    width: 160,
+    height: 220,
+    marginRight: spacing.md,
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: colors.surface,
+    elevation: 4,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  dailyPickImage: {
+    width: '100%',
+    height: '100%'
+  },
+  dailyPickImagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: colors.surface
+  },
+  dailyPickOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: spacing.md,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backdropFilter: 'blur(10px)',
+  },
+  dailyPickCategory: {
+    ...typography.body_sm,
+    color: colors.primary,
+    fontWeight: '700',
+    marginBottom: 4,
+    fontSize: 11,
+  },
+  dailyPickReason: {
+    ...typography.body_sm,
+    color: colors.text_white,
+    fontWeight: '500',
+    fontSize: 12,
+    lineHeight: 16,
   }
 });

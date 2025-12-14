@@ -83,11 +83,19 @@ export const RootNavigator = () => {
             return <Ionicons name={icons[route.name]} size={size} color={color} />;
           },
           tabBarActiveTintColor: colors.primary,
-          tabBarInactiveTintColor: colors.text_secondary,
+          tabBarInactiveTintColor: colors.text_tertiary,
           tabBarStyle: {
-            backgroundColor: colors.background,
+            backgroundColor: colors.surface,
             borderTopColor: colors.border,
-            borderTopWidth: 1
+            borderTopWidth: 1,
+            elevation: 8,
+            shadowColor: colors.shadow,
+            shadowOffset: { width: 0, height: -2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 8,
+            height: 85,
+            paddingBottom: 28,
+            paddingTop: 8,
           },
           tabBarLabel: ({ focused, color }) => {
             const labels = {
@@ -97,7 +105,18 @@ export const RootNavigator = () => {
               Trend: '트렌드',
               Profile: '프로필'
             };
-            return <Text style={{ color, fontSize: 10, marginTop: -5 }}>{labels[route.name]}</Text>;
+            return (
+              <Text
+                style={{
+                  color,
+                  fontSize: 11,
+                  fontWeight: focused ? '700' : '500',
+                  marginTop: 4,
+                }}
+              >
+                {labels[route.name]}
+              </Text>
+            );
           }
         })}
       >
