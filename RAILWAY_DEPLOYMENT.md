@@ -57,7 +57,7 @@ LOG_LEVEL=info
 
 **중요**: `YOUTUBE_API_KEY`는 실제 YouTube API 키로 교체해야 합니다.
 
-현재 `.env` 파일의 키: `YOUR_YOUTUBE_API_KEY`
+`.env` 파일에 발급받은 YouTube API 키를 넣어 주세요 (키는 절대 커밋하지 않습니다).
 
 ## 4단계: 데이터베이스 초기화
 
